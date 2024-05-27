@@ -1,6 +1,5 @@
 import { aws_opensearchserverless } from "aws-cdk-lib";import { PrincipalBase } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
-import { Kms } from "./kms";
 
 export type OpensearchProps = {
     collectionName: string;
