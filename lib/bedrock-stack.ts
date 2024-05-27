@@ -36,6 +36,7 @@ export class BedrockStack extends cdk.Stack {
           bucket: s3Bucket.bucket,
         },
         openSearchServerlessParams: {
+          collectionName: PARAMS.OASS.COLLECTION_NAME,
           collectionArn: collectionArn,
           collectionEndpoint: collectionEndpoint,
           indexName: PARAMS.OASS.INDEX_NAME,

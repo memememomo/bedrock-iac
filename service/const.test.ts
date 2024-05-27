@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
-import { EXPORT_NAME, region, account, s3Arn, aossCollectionArn, embeddingModelArn } from "../service/const";
+import { EXPORT_NAME } from "../service/const";
+import {account, aossCollectionArn, embeddingModelArn, region, s3Arn} from "./util";
 
 
 test("EXPORT_NAME.VPC_ID is defined", () => {

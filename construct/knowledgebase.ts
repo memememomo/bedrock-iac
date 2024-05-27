@@ -3,7 +3,8 @@ import * as bedrock from 'aws-cdk-lib/aws-bedrock';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
-import { PARAMS, embeddingModelArn, ssmArn } from '../service/const';
+import { PARAMS } from '../service/const';
+import {embeddingModelArn, kmsPolicyStatements, s3PolicyStatements} from "../service/util";
 import { Kms } from './kms';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
@@ -20,6 +21,7 @@ export type KnowledgeBaseParams = {
 export type OpenSearchServerlessParams = {
     collectionArn: string;
     collectionEndpoint: string;
+    collectionName: string;
     indexName: string;
 };
 
@@ -39,9 +41,13 @@ export class KnowledgeBase extends Construct {
         super(scope, id);
 
         // インデックスをカスタムリソースで作成
-        const customResource = this.createIndex(props);
+        const customResource = this.createOpenSearchIndexByCustomResource(props);
 
-        // IAMロール・ポリシーを作成
+        const key = new Kms(this, 'KmsKeyDataSource', {
+            alias: `data-source/${props.knowledgeBaseParams.name}`,
+        }).key;
+
+        // KnowledgeBase用のIAMロール
         const knowledgebaseRole = new iam.Role(this, 'KnowledgeBaseRole', {
             roleName: PARAMS.BEDROCK.ROLE_NAME,
             assumedBy: new iam.ServicePrincipal('bedrock.amazonaws.com'),
@@ -49,32 +55,17 @@ export class KnowledgeBase extends Construct {
         const knowledgebasePolicy = new iam.Policy(this, 'KnowledgeBasePolicy', {
             statements: [
                 new iam.PolicyStatement({
-                    effect: iam.Effect.ALLOW,
-                    resources: ['*'],
-                    actions: ['*'],
+                  effect: iam.Effect.ALLOW,
+                  resources: [embeddingModelArn(this, props.embeddingModelName)],
+                  actions: ['bedrock:InvokeModel'],
                 }),
-                //new iam.PolicyStatement({
-                //  effect: iam.Effect.ALLOW,
-                //  resources: [embeddingModeArn(this.region)],
-                //  actions: ['bedrock:InvokeModel'],
-                //}),
-                //new iam.PolicyStatement({
-                //  effect: iam.Effect.ALLOW,
-                //  resources: [aossCollectionArn(this.region, this.account, collectionName)],
-                //  actions: ['aoss:APIAccessAll'],
-                //}),
-                //new iam.PolicyStatement({
-                //  effect: iam.Effect.ALLOW,
-                //  resources: [s3Arn(s3BucketName)],
-                //  actions: ['s3:ListBucket'],
-                //  conditions: {
-                //    StringEquals: {
-                //      "aws:ResourceAccount": [
-                //        this.account
-                //      ],
-                //    }
-                //  }
-                //}),
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    resources: [props.openSearchServerlessParams.collectionArn],
+                    actions: ['aoss:*'],
+                }),
+                ...kmsPolicyStatements(this, key.keyArn),
+                ...s3PolicyStatements(this, props.knowledgeBaseParams.bucket.bucketName),
             ],
         });
         knowledgebasePolicy.attachToRole(knowledgebaseRole);
@@ -110,9 +101,6 @@ export class KnowledgeBase extends Construct {
         });
         cfnKnowledgeBase.node.addDependency(customResource);
 
-        const key = new Kms(this, 'KmsKeyDataSource', {
-            alias: `data-source/${props.knowledgeBaseParams.name}`,
-        }).key;
 
         const cfnDataSource = new bedrock.CfnDataSource(this, 'BedrockDataSource', {
             name: props.knowledgeBaseParams.name,
@@ -140,7 +128,7 @@ export class KnowledgeBase extends Construct {
         });
     }
 
-    createIndex(props: KnowledgeBaseProps) {
+    createOpenSearchIndexByCustomResource(props: KnowledgeBaseProps) {
         // KnowledgeBase用のカスタムリソース用のIAMロール
         const customResourceRole = new iam.Role(
             this,

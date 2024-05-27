@@ -1,8 +1,8 @@
 import * as bedrock from 'aws-cdk-lib/aws-bedrock';
 import { Bucket, BucketAccessControl } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
-import { embeddingModelArn } from '../service/const';
 import { Kms } from './kms';
+import {embeddingModelArn} from "../service/util";
 
 export type KnowledgeBaseArgs = {
     name: string;
@@ -31,7 +31,7 @@ export class BedrockDataSource extends Construct {
             knowledgeBaseConfiguration: {
                 type: 'VECTOR',
                 vectorKnowledgeBaseConfiguration: {
-                    embeddingModelArn: embeddingModelArn(props.region),
+                    embeddingModelArn: embeddingModelArn(this, props.region),
                 },
             },
             storageConfiguration: {

@@ -1,7 +1,8 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Opensearch } from '../construct/opensearch';
-import { EXPORT_NAME, PARAMS, bedrockRoleArn, customResourceRoleArn } from '../service/const';
+import { EXPORT_NAME, PARAMS } from '../service/const';
+import {bedrockRoleArn, customResourceRoleArn} from "../service/util";
 
 
 export class OpenSearchStack extends cdk.Stack {
