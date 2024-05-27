@@ -31,7 +31,7 @@ export class BedrockDataSource extends Construct {
             knowledgeBaseConfiguration: {
                 type: 'VECTOR',
                 vectorKnowledgeBaseConfiguration: {
-                    embeddingModelArn: embeddingModelArn(props.region),
+                    embeddingModelArn: embeddingModelArn(this, props.region),
                 },
             },
             storageConfiguration: {

@@ -1,4 +1,5 @@
 import * as cdk from "aws-cdk-lib";
+import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
 
@@ -84,7 +85,33 @@ export const bedrockRoleArn = (c: Construct) =>
 export const customResourceRoleArn = (c: Construct) =>
     roleArn(c, PARAMS.CUSTOM_RESOURCE.ROLE_NAME);
 
+export const s3PolicyStatements = (c: Construct, bucketName: string) =>
+    [
+        new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            resources: [s3Arn(c, bucketName)],
+            actions: ['s3:ListBucket'],
+            conditions: {
+                StringEquals: {
+                    "aws:ResourceAccount": account(c),
+                }
+            },
+        }),
+        new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            resources: [`${s3Arn(c, bucketName)}/*`],
+            actions: ['s3:GetObject'],
+            conditions: {
+                StringEquals: {
+                    "aws:ResourceAccount": account(c),
+                }
+            }
+        }),
+    ]
+
+
 // 6文字のランダムな文字列を生成
 export const randomName = (c: Construct) =>
     cdk.Names.uniqueId(c).slice(-6).toLowerCase();
+
 
