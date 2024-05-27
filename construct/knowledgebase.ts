@@ -3,7 +3,7 @@ import * as bedrock from 'aws-cdk-lib/aws-bedrock';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
-import { PARAMS, account, aossCollectionArn, embeddingModelArn, s3Arn, s3PolicyStatements, ssmArn } from '../service/const';
+import { PARAMS, embeddingModelArn, s3PolicyStatements, kmsPolicyStatements } from '../service/const';
 import { Kms } from './kms';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
@@ -42,6 +42,10 @@ export class KnowledgeBase extends Construct {
         // インデックスをカスタムリソースで作成
         const customResource = this.createOpenSearchIndexByCustomResource(props);
 
+        const key = new Kms(this, 'KmsKeyDataSource', {
+            alias: `data-source/${props.knowledgeBaseParams.name}`,
+        }).key;
+
         // KnowledgeBase用のIAMロール
         const knowledgebaseRole = new iam.Role(this, 'KnowledgeBaseRole', {
             roleName: PARAMS.BEDROCK.ROLE_NAME,
@@ -59,6 +63,7 @@ export class KnowledgeBase extends Construct {
                     resources: [props.openSearchServerlessParams.collectionArn],
                     actions: ['aoss:*'],
                 }),
+                ...kmsPolicyStatements(this, key.keyArn),
                 ...s3PolicyStatements(this, props.knowledgeBaseParams.bucket.bucketName),
             ],
         });
@@ -95,9 +100,6 @@ export class KnowledgeBase extends Construct {
         });
         cfnKnowledgeBase.node.addDependency(customResource);
 
-        const key = new Kms(this, 'KmsKeyDataSource', {
-            alias: `data-source/${props.knowledgeBaseParams.name}`,
-        }).key;
 
         const cfnDataSource = new bedrock.CfnDataSource(this, 'BedrockDataSource', {
             name: props.knowledgeBaseParams.name,

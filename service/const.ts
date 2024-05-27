@@ -109,6 +109,18 @@ export const s3PolicyStatements = (c: Construct, bucketName: string) =>
         }),
     ]
 
+export const kmsPolicyStatements = (c: Construct, keyArn: string) =>
+    [
+        new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            resources: [keyArn],
+            actions: [
+                'kms:Encrypt',
+                'kms:Decrypt',
+                'kms:GenerateDataKey',
+            ],
+        })
+    ]
 
 // 6文字のランダムな文字列を生成
 export const randomName = (c: Construct) =>
