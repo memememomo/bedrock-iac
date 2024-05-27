@@ -40,7 +40,7 @@ export class KnowledgeBase extends Construct {
         super(scope, id);
 
         // インデックスをカスタムリソースで作成
-        const customResource = this.createIndex(props);
+        const customResource = this.createOpenSearchIndexByCustomResource(props);
 
         // KnowledgeBase用のIAMロール
         const knowledgebaseRole = new iam.Role(this, 'KnowledgeBaseRole', {
@@ -125,7 +125,7 @@ export class KnowledgeBase extends Construct {
         });
     }
 
-    createIndex(props: KnowledgeBaseProps) {
+    createOpenSearchIndexByCustomResource(props: KnowledgeBaseProps) {
         // KnowledgeBase用のカスタムリソース用のIAMロール
         const customResourceRole = new iam.Role(
             this,
