@@ -1,4 +1,3 @@
-import * as cdk from 'aws-cdk-lib';
 import * as bedrock from 'aws-cdk-lib/aws-bedrock';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
@@ -100,7 +99,8 @@ export class KnowledgeBase extends Construct {
             }
         });
         cfnKnowledgeBase.node.addDependency(customResource);
-
+        this.knowledgeBaseId = cfnKnowledgeBase.attrKnowledgeBaseId;
+        this.knowledgeBaseArn = cfnKnowledgeBase.attrKnowledgeBaseArn;
 
         const cfnDataSource = new bedrock.CfnDataSource(this, 'BedrockDataSource', {
             name: props.knowledgeBaseParams.name,
@@ -126,6 +126,7 @@ export class KnowledgeBase extends Construct {
                 },
             },
         });
+        this.dataSourceId = cfnDataSource.attrDataSourceId;
     }
 
     createOpenSearchIndexByCustomResource(props: KnowledgeBaseProps) {

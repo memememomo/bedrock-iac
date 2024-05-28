@@ -43,6 +43,15 @@ export const embeddingModelArn = (c: Construct, modelName: string) =>
         resource: 'foundation-model',
         resourceName: modelName,
     });
+export const customModelArn = (c: Construct, modelName: string) =>
+    cdk.Arn.format({
+        partition: 'aws',
+        service: 'bedrock',
+        account: '',
+        region: region(c),
+        resource: 'foundation-model',
+        resourceName: modelName,
+    });
 export const ssmArn = (c: Construct, parameterName: string) =>
     cdk.Arn.format({
         partition: 'aws',
