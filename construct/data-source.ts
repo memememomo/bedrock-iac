@@ -1,19 +1,18 @@
 import * as bedrock from 'aws-cdk-lib/aws-bedrock';
-import { Bucket, BucketAccessControl } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { Kms } from './kms';
 import {embeddingModelArn} from "../service/util";
 
-export type KnowledgeBaseArgs = {
+type KnowledgeBaseArgs = {
     name: string;
     roleArn: string;
 };
 
-export type OpenSearchServerlessArgs = {
+type OpenSearchServerlessArgs = {
     collectionArn: string;
 };
 
-export type BedrockDataSourceProps = {
+type BedrockDataSourceProps = {
     region: string,
     knowledgeBaseArgs: KnowledgeBaseArgs;
     bucketArn: string;

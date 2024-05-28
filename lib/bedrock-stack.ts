@@ -44,6 +44,22 @@ export class BedrockStack extends cdk.Stack {
       });
 
       // 出力
+      new cdk.CfnOutput(this, 'KnowledgeBaseId', {
+          value: knowledgebase.knowledgeBaseId,
+          exportName: EXPORT_NAME.KNOWLEDGE_BASE_ID,
+      });
+        new cdk.CfnOutput(this, 'KnowledgeBaseArn', {
+            value: knowledgebase.knowledgeBaseArn,
+            exportName: EXPORT_NAME.KNOWLEDGE_BASE_ARN,
+        });
+        new cdk.CfnOutput(this, 'KnowledgeBaseRole', {
+            value: knowledgebase.knowledgeBaseRole.roleArn,
+            exportName: EXPORT_NAME.KNOWLEDGE_BASE_ROLE,
+        });
+        new cdk.CfnOutput(this, 'DataSourceId', {
+            value: knowledgebase.dataSourceId,
+            exportName: EXPORT_NAME.DATA_SOURCE_ID,
+        });
       new cdk.CfnOutput(this, 'DataSourceBucket', {
         value: s3Bucket.bucket.bucketName,
         exportName: EXPORT_NAME.DATASOURCE_BUCKET,
