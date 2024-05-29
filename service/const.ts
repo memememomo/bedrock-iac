@@ -13,9 +13,14 @@ export const PARAMS = {
         DATASOURCE_BUCKET_NAME: 'bedrock-datasource',
         FOUNDATION_MODEL_NAME: 'anthropic.claude-3-sonnet-20240229-v1:0',
         //FOUNDATION_MODEL_NAME: 'anthropic.claude-3-haiku-20240307-v1:0',
+        DIMENSION: 1536,
     } as const,
     CUSTOM_RESOURCE: {
         ROLE_NAME: 'custom-resource-role',
+    } as const,
+    SECRET_KEY: {
+        PINECONE_API_KEY: 'pinecone-api-key',
+        PINECONE_INDEX_ENDPOINT: 'pinecone-index-endpoint',
     } as const,
 } as const;
 

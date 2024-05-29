@@ -61,6 +61,16 @@ export const ssmArn = (c: Construct, parameterName: string) =>
         resource: 'parameter',
         resourceName: parameterName,
     });
+export const secretsManagerArn = (c: Construct, secretName: string) =>
+    cdk.Arn.format({
+        partition: 'aws',
+        service: 'secretsmanager',
+        region: region(c),
+        account: account(c),
+        resource: 'secret',
+        resourceName: `${secretName}-??????`,
+        arnFormat: cdk.ArnFormat.COLON_RESOURCE_NAME
+    });
 export const roleArn = (c: Construct, roleName: string) =>
     cdk.Arn.format({
         partition: 'aws',
