@@ -1,5 +1,6 @@
 import * as bedrock from 'aws-cdk-lib/aws-bedrock';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as sm from 'aws-cdk-lib/aws-secretsmanager';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { PARAMS } from '../service/const';
@@ -10,24 +11,32 @@ import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { CustomResource, Duration } from 'aws-cdk-lib';
 import { Provider } from 'aws-cdk-lib/custom-resources';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import {CfnKnowledgeBase} from "aws-cdk-lib/aws-bedrock/lib/bedrock.generated";
+import StorageConfigurationProperty = CfnKnowledgeBase.StorageConfigurationProperty;
 
 
-export type KnowledgeBaseParams = {
+type KnowledgeBaseParams = {
     name: string;
     bucket: Bucket;
 };
 
-export type OpenSearchServerlessParams = {
+type OpenSearchServerlessParams = {
     collectionArn: string;
     collectionEndpoint: string;
     collectionName: string;
     indexName: string;
 };
 
-export type KnowledgeBaseProps = {
+type PineconeParams = {
+    apiKeySecretKey: string;
+    indexEndpointSecretKey: string;
+};
+
+type KnowledgeBaseProps = {
     embeddingModelName: string;
     knowledgeBaseParams: KnowledgeBaseParams;
-    openSearchServerlessParams: OpenSearchServerlessParams;
+    openSearchServerlessParams?: OpenSearchServerlessParams;
+    piconeParams?: PineconeParams;
 };
 
 export class KnowledgeBase extends Construct {
@@ -39,8 +48,6 @@ export class KnowledgeBase extends Construct {
     constructor(scope: Construct, id: string, props: KnowledgeBaseProps) {
         super(scope, id);
 
-        // インデックスをカスタムリソースで作成
-        const customResource = this.createOpenSearchIndexByCustomResource(props);
 
         const key = new Kms(this, 'KmsKeyDataSource', {
             alias: `data-source/${props.knowledgeBaseParams.name}`,
@@ -58,15 +65,19 @@ export class KnowledgeBase extends Construct {
                   resources: [embeddingModelArn(this, props.embeddingModelName)],
                   actions: ['bedrock:InvokeModel'],
                 }),
-                new iam.PolicyStatement({
-                    effect: iam.Effect.ALLOW,
-                    resources: [props.openSearchServerlessParams.collectionArn],
-                    actions: ['aoss:*'],
-                }),
                 ...kmsPolicyStatements(this, key.keyArn),
                 ...s3PolicyStatements(this, props.knowledgeBaseParams.bucket.bucketName),
             ],
         });
+        if (props.openSearchServerlessParams) {
+            knowledgebasePolicy.addStatements(
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    resources: [props.openSearchServerlessParams.collectionArn],
+                    actions: ['aoss:*'],
+                })
+            );
+        }
         knowledgebasePolicy.attachToRole(knowledgebaseRole);
         this.knowledgeBaseRole = knowledgebaseRole;
 
@@ -85,22 +96,16 @@ export class KnowledgeBase extends Construct {
                     embeddingModelArn: embeddingModelArn(this, props.embeddingModelName),
                 },
             },
-            storageConfiguration: {
-                type: 'OPENSEARCH_SERVERLESS',
-                opensearchServerlessConfiguration: {
-                    collectionArn: props.openSearchServerlessParams.collectionArn,
-                    fieldMapping: {
-                        metadataField: 'metadata',
-                        textField: 'text',
-                        vectorField: `${props.openSearchServerlessParams.indexName}-vector`,
-                    },
-                    vectorIndexName: props.openSearchServerlessParams.indexName,
-                }
-            }
+            storageConfiguration: this.storageConfiguration(props),
         });
-        cfnKnowledgeBase.node.addDependency(customResource);
         this.knowledgeBaseId = cfnKnowledgeBase.attrKnowledgeBaseId;
         this.knowledgeBaseArn = cfnKnowledgeBase.attrKnowledgeBaseArn;
+
+        // インデックスをカスタムリソースで作成
+        if (props.openSearchServerlessParams) {
+            const customResource = this.createOpenSearchIndexByCustomResource(props);
+            cfnKnowledgeBase.node.addDependency(customResource);
+        }
 
         const cfnDataSource = new bedrock.CfnDataSource(this, 'BedrockDataSource', {
             name: props.knowledgeBaseParams.name,
@@ -127,6 +132,47 @@ export class KnowledgeBase extends Construct {
             },
         });
         this.dataSourceId = cfnDataSource.attrDataSourceId;
+    }
+
+    storageConfiguration(props: KnowledgeBaseProps): StorageConfigurationProperty {
+        if (props.openSearchServerlessParams) {
+            return {
+                type: 'OPENSEARCH_SERVERLESS',
+                opensearchServerlessConfiguration: {
+                    collectionArn: props.openSearchServerlessParams.collectionArn,
+                    fieldMapping: {
+                        metadataField: 'metadata',
+                        textField: 'text',
+                        vectorField: `${props.openSearchServerlessParams.indexName}-vector`,
+                    },
+                    vectorIndexName: props.openSearchServerlessParams.indexName,
+                },
+            }
+        }
+
+        if (props.piconeParams) {
+            const secret = sm.Secret.fromSecretAttributes(this, 'PineconeSecret', {
+                secretPartialArn: props.piconeParams.indexEndpointSecretKey,
+            });
+            const endpoint = secret.secretValue.toString()
+
+            return {
+                type: 'PINECONE',
+                pineconeConfiguration: {
+                    connectionString: endpoint,
+                    credentialsSecretArn: props.piconeParams.apiKeySecretKey,
+                    fieldMapping: {
+                        metadataField: 'metadata',
+                        textField: 'text',
+                    },
+                },
+            }
+        }
+
+        // どちらでもない場合はUNKNOWNでひとまずエラーを出す
+        return {
+            type: 'UNKNOWN',
+        };
     }
 
     createOpenSearchIndexByCustomResource(props: KnowledgeBaseProps) {

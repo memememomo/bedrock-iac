@@ -1,17 +1,23 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { EXPORT_NAME, PARAMS } from '../service/const';
+import {EXPORT_NAME, PARAMS, StorageStoreType} from '../service/const';
 import { SecureS3 } from '../construct/secure-s3';
 import { BedrockGuardrail } from '../construct/guardrail';
 import { KnowledgeBase } from '../construct/knowledgebase';
 
 
+interface Config {
+    storageStoreType: StorageStoreType,
+}
+
+interface BedrockStackProps extends cdk.StackProps {
+    config: Config;
+}
+
 export class BedrockStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: BedrockStackProps) {
       super(scope, id, props);
 
-      const collectionArn = cdk.Fn.importValue(EXPORT_NAME.COLLECTION_ARN);
-      const collectionEndpoint = cdk.Fn.importValue(EXPORT_NAME.COLLECTION_ENDPOINT);
 
       const s3BucketName = 'bedrock-rag-esa';
       const guardrailName = 'bedrock-rag';
@@ -29,17 +35,12 @@ export class BedrockStack extends cdk.Stack {
 
       // KnowledgeBase作成
       const knowledgebase = new KnowledgeBase(this, 'KnowledgeBase', {
-        embeddingModelName: PARAMS.BEDROCK.EMBEDDING_MODEL_NAME,
-        knowledgeBaseParams: {
-          name: knowledgeBaseName,
-          bucket: s3Bucket.bucket,
-        },
-        openSearchServerlessParams: {
-          collectionName: PARAMS.OASS.COLLECTION_NAME,
-          collectionArn: collectionArn,
-          collectionEndpoint: collectionEndpoint,
-          indexName: PARAMS.OASS.INDEX_NAME,
-        }
+          embeddingModelName: PARAMS.BEDROCK.EMBEDDING_MODEL_NAME,
+          knowledgeBaseParams: {
+            name: knowledgeBaseName,
+            bucket: s3Bucket.bucket,
+          },
+          ...this.storageStore(props),
       });
 
       // 出力
@@ -64,4 +65,28 @@ export class BedrockStack extends cdk.Stack {
         exportName: EXPORT_NAME.DATASOURCE_BUCKET,
       });
   }
+
+  storageStore(props: BedrockStackProps) {
+      switch (props.config.storageStoreType) {
+        case StorageStoreType.Pinecone:
+            return {
+                piconeParams: {
+                    apiKeySecretKey: PARAMS.SECRET_KEY.PINECONE_API_KEY,
+                    indexEndpointSecretKey: PARAMS.SECRET_KEY.PINECONE_INDEX_ENDPOINT,
+                }
+            };
+        default:
+            const collectionArn = cdk.Fn.importValue(EXPORT_NAME.COLLECTION_ARN);
+            const collectionEndpoint = cdk.Fn.importValue(EXPORT_NAME.COLLECTION_ENDPOINT);
+            return {
+                openSearchServerlessParams: {
+                    collectionName: PARAMS.OASS.COLLECTION_NAME,
+                    collectionArn: collectionArn,
+                    collectionEndpoint: collectionEndpoint,
+                    indexName: PARAMS.OASS.INDEX_NAME,
+                },
+            }
+      }
+  }
+
 }

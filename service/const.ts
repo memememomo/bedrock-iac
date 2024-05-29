@@ -38,3 +38,8 @@ export const EXPORT_NAME = {
     AGENT_ID: 'bedrock-agent-id',
 } as const;
 
+export const StorageStoreType = {
+    Pinecone: 'Pinecone',
+    OpenSearchServerless: 'OpenSearchServerless',
+} as const;
+export type StorageStoreType = typeof StorageStoreType[keyof typeof StorageStoreType];
