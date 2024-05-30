@@ -2,6 +2,7 @@ package pine
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -75,7 +76,13 @@ func getApiKey(ctx context.Context, region, apiKeySecretName string) (string, er
 		return "", errors.WithStack(err)
 	}
 
-	return *result.SecretString, nil
+	var v map[string]string
+	err = json.Unmarshal([]byte(*result.SecretString), &v)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	return v["apiKey"], nil
 }
 
 func cfnEventProperty(event cfn.Event, propertyName string) (string, error) {
@@ -212,7 +219,8 @@ func (p *PineconeIndex) deleteIndexEndpoint(ctx context.Context) error {
 	}
 
 	_, err = svc.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
-		SecretId: aws.String(p.indexEndpointSecretKey),
+		SecretId:                   aws.String(p.indexEndpointSecretKey),
+		ForceDeleteWithoutRecovery: aws.Bool(true),
 	})
 	if err != nil {
 		return errors.WithStack(err)

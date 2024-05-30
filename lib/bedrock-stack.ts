@@ -3,11 +3,12 @@ import { Construct } from 'constructs';
 import {EXPORT_NAME, PARAMS, StorageStoreType} from '../service/const';
 import { SecureS3 } from '../construct/secure-s3';
 import { BedrockGuardrail } from '../construct/guardrail';
-import { KnowledgeBase } from '../construct/knowledgebase';
+import {KnowledgeBase, OpenSearchServerlessParams, PineconeParams} from '../construct/knowledgebase';
 
 
 interface Config {
     storageStoreType: StorageStoreType,
+    indexEndpointSecretKeyFullArn: string,
 }
 
 interface BedrockStackProps extends cdk.StackProps {
@@ -73,7 +74,8 @@ export class BedrockStack extends cdk.Stack {
                 pineconeParams: {
                     apiKeySecretKey: PARAMS.SECRET_KEY.PINECONE_API_KEY,
                     indexEndpointSecretKey: PARAMS.SECRET_KEY.PINECONE_INDEX_ENDPOINT,
-                }
+                    indexEndpointSecretKeyFullArn: props.config.indexEndpointSecretKeyFullArn,
+                } as PineconeParams
             };
         default:
             const collectionArn = cdk.Fn.importValue(EXPORT_NAME.COLLECTION_ARN);
@@ -84,7 +86,7 @@ export class BedrockStack extends cdk.Stack {
                     collectionArn: collectionArn,
                     collectionEndpoint: collectionEndpoint,
                     indexName: PARAMS.OASS.INDEX_NAME,
-                },
+                } as OpenSearchServerlessParams,
             }
       }
   }

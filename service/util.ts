@@ -4,7 +4,6 @@ import * as cdk from "aws-cdk-lib";
 import {PARAMS} from "./const";
 
 export const kmsPolicyStatements = (c: Construct, keyArn: string) =>
-    [
         new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
             resources: [keyArn],
@@ -13,8 +12,8 @@ export const kmsPolicyStatements = (c: Construct, keyArn: string) =>
                 'kms:Decrypt',
                 'kms:GenerateDataKey',
             ],
-        })
-    ]
+        });
+
 export const region = (c: Construct) => cdk.Stack.of(c).region;
 export const account = (c: Construct) => cdk.Stack.of(c).account;
 export const s3Arn = (c: Construct, bucketName: string) =>
@@ -61,6 +60,10 @@ export const ssmArn = (c: Construct, parameterName: string) =>
         resource: 'parameter',
         resourceName: parameterName,
     });
+
+export const secretsManagerPartialArn = (c: Construct, secretName: string) =>
+    secretsManagerArn(c, `${secretName}-??????`);
+
 export const secretsManagerArn = (c: Construct, secretName: string) =>
     cdk.Arn.format({
         partition: 'aws',
@@ -68,9 +71,10 @@ export const secretsManagerArn = (c: Construct, secretName: string) =>
         region: region(c),
         account: account(c),
         resource: 'secret',
-        resourceName: `${secretName}-??????`,
+        resourceName: secretName,
         arnFormat: cdk.ArnFormat.COLON_RESOURCE_NAME
     });
+
 export const roleArn = (c: Construct, roleName: string) =>
     cdk.Arn.format({
         partition: 'aws',
@@ -84,7 +88,7 @@ export const bedrockRoleArn = (c: Construct) =>
     roleArn(c, PARAMS.BEDROCK.ROLE_NAME);
 export const customResourceRoleArn = (c: Construct) =>
     roleArn(c, PARAMS.CUSTOM_RESOURCE.ROLE_NAME);
-export const s3PolicyStatements = (c: Construct, bucketName: string) =>
+export const s3PolicyStatements = (c: Construct, bucketName: string): iam.PolicyStatement[] =>
     [
         new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
@@ -106,7 +110,8 @@ export const s3PolicyStatements = (c: Construct, bucketName: string) =>
                 }
             }
         }),
-    ]
+    ];
+
 // 6文字のランダムな文字列を生成
 export const randomName = (c: Construct) =>
     cdk.Names.uniqueId(c).slice(-6).toLowerCase();

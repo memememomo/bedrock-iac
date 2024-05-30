@@ -2,7 +2,7 @@ import {Construct} from "constructs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as ecr_assets from "aws-cdk-lib/aws-ecr-assets";
 import * as iam from "aws-cdk-lib/aws-iam";
-import {region, secretsManagerArn} from "../service/util";
+import {region, secretsManagerPartialArn} from "../service/util";
 import {Provider} from "aws-cdk-lib/custom-resources";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
 import {CustomResource, Duration} from "aws-cdk-lib";
@@ -28,11 +28,11 @@ export class Pinecone extends Construct {
                     ssmPolicy: new iam.PolicyDocument({
                         statements: [
                             new iam.PolicyStatement({
-                                resources: [secretsManagerArn(this, props.apiKeySecretKey)],
+                                resources: [secretsManagerPartialArn(this, props.apiKeySecretKey)],
                                 actions: ['secretsmanager:GetSecretValue'],
                             }),
                             new iam.PolicyStatement({
-                                resources: [secretsManagerArn(this, props.indexEndpointSecretKey)],
+                                resources: [secretsManagerPartialArn(this, props.indexEndpointSecretKey)],
                                 actions: ['secretsmanager:CreateSecret', 'secretsmanager:DeleteSecret'],
                             }),
                         ]

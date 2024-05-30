@@ -18,6 +18,7 @@ const bedrockStack = new BedrockStack(app, 'BedrockStack', {
     config: {
         //storageStoreType: StorageStoreType.OpenSearchServerless,
         storageStoreType: StorageStoreType.Pinecone,
+        indexEndpointSecretKeyFullArn: '',
     },
 });
 //bedrockStack.addDependency(opensearchStack);

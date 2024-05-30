@@ -4,7 +4,13 @@ import * as sm from 'aws-cdk-lib/aws-secretsmanager';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { PARAMS } from '../service/const';
-import {embeddingModelArn, kmsPolicyStatements, s3PolicyStatements, secretsManagerArn} from "../service/util";
+import {
+    embeddingModelArn,
+    kmsPolicyStatements,
+    s3PolicyStatements,
+    secretsManagerArn,
+    secretsManagerPartialArn
+} from "../service/util";
 import { Kms } from './kms';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
@@ -20,16 +26,17 @@ type KnowledgeBaseParams = {
     bucket: Bucket;
 };
 
-type OpenSearchServerlessParams = {
+export type OpenSearchServerlessParams = {
     collectionArn: string;
     collectionEndpoint: string;
     collectionName: string;
     indexName: string;
 };
 
-type PineconeParams = {
+export type PineconeParams = {
     apiKeySecretKey: string;
     indexEndpointSecretKey: string;
+    indexEndpointSecretKeyFullArn: string;
 };
 
 type KnowledgeBaseProps = {
@@ -53,38 +60,60 @@ export class KnowledgeBase extends Construct {
             alias: `data-source/${props.knowledgeBaseParams.name}`,
         }).key;
 
+        const knowledgebasePolicies: {[name: string]: iam.PolicyDocument} = {
+            embedding: new iam.PolicyDocument({
+                statements:[
+                   new iam.PolicyStatement({
+                       effect: iam.Effect.ALLOW,
+                       resources: [embeddingModelArn(this, props.embeddingModelName)],
+                       actions: ['bedrock:InvokeModel'],
+                   })
+                ]
+            }),
+            kms: new iam.PolicyDocument({
+                statements: [
+                    kmsPolicyStatements(this, key.keyArn),
+                ]
+            }),
+            s3: new iam.PolicyDocument({
+                statements: [
+                    ...s3PolicyStatements(this, props.knowledgeBaseParams.bucket.bucketName)
+                ]
+            }),
+        };
+        if (props.openSearchServerlessParams) {
+            knowledgebasePolicies.aoss = new iam.PolicyDocument({
+                statements: [
+                    new iam.PolicyStatement({
+                        effect: iam.Effect.ALLOW,
+                        resources: [props.openSearchServerlessParams.collectionArn],
+                        actions: ['aoss:*'],
+                    })
+                ],
+            });
+        } else if (props.pineconeParams) {
+            knowledgebasePolicies.pinecone = new iam.PolicyDocument({
+                statements: [
+                    new iam.PolicyStatement({
+                        effect: iam.Effect.ALLOW,
+                        resources: [secretsManagerPartialArn(this,  props.pineconeParams.apiKeySecretKey)],
+                        actions: ['secretsmanager:GetSecretValue'],
+                    })
+                ]
+            });
+        }
+
         // KnowledgeBase用のIAMロール
         const knowledgebaseRole = new iam.Role(this, 'KnowledgeBaseRole', {
             roleName: PARAMS.BEDROCK.ROLE_NAME,
             assumedBy: new iam.ServicePrincipal('bedrock.amazonaws.com'),
+            inlinePolicies: knowledgebasePolicies,
         });
-        const knowledgebasePolicy = new iam.Policy(this, 'KnowledgeBasePolicy', {
-            statements: [
-                new iam.PolicyStatement({
-                  effect: iam.Effect.ALLOW,
-                  resources: [embeddingModelArn(this, props.embeddingModelName)],
-                  actions: ['bedrock:InvokeModel'],
-                }),
-                ...kmsPolicyStatements(this, key.keyArn),
-                ...s3PolicyStatements(this, props.knowledgeBaseParams.bucket.bucketName),
-            ],
-        });
-        if (props.openSearchServerlessParams) {
-            knowledgebasePolicy.addStatements(
-                new iam.PolicyStatement({
-                    effect: iam.Effect.ALLOW,
-                    resources: [props.openSearchServerlessParams.collectionArn],
-                    actions: ['aoss:*'],
-                })
-            );
-        }
-        knowledgebasePolicy.attachToRole(knowledgebaseRole);
         this.knowledgeBaseRole = knowledgebaseRole;
 
 
         // KnowledgeBase用のS3バケットに対する読み書き権限を付与
         props.knowledgeBaseParams.bucket.grantReadWrite(this.knowledgeBaseRole);
-
 
         // KnowledgeBase作成
         const cfnKnowledgeBase = new bedrock.CfnKnowledgeBase(this, 'BedrockKnowledgeBase', {
@@ -98,8 +127,6 @@ export class KnowledgeBase extends Construct {
             },
             storageConfiguration: this.storageConfiguration(props),
         });
-        this.knowledgeBaseId = cfnKnowledgeBase.attrKnowledgeBaseId;
-        this.knowledgeBaseArn = cfnKnowledgeBase.attrKnowledgeBaseArn;
 
         // インデックスをカスタムリソースで作成
         if (props.openSearchServerlessParams != null) {
@@ -131,6 +158,9 @@ export class KnowledgeBase extends Construct {
                 },
             },
         });
+
+        this.knowledgeBaseId = cfnKnowledgeBase.attrKnowledgeBaseId;
+        this.knowledgeBaseArn = cfnKnowledgeBase.attrKnowledgeBaseArn;
         this.dataSourceId = cfnDataSource.attrDataSourceId;
     }
 
@@ -151,21 +181,15 @@ export class KnowledgeBase extends Construct {
         }
 
         if (props.pineconeParams != null) {
-            //const secret = sm.Secret.fromSecretNameV2(
-            //    this,
-            //    'PineconeSecret',
-            //    props.pineconeParams.indexEndpointSecretKey
-            //);
             const endpoint = SecretValue
                 .secretsManager(props.pineconeParams.indexEndpointSecretKey)
                 .unsafeUnwrap();
-
 
             return {
                 type: 'PINECONE',
                 pineconeConfiguration: {
                     connectionString: `https://${endpoint}/`,
-                    credentialsSecretArn: props.pineconeParams.apiKeySecretKey,
+                    credentialsSecretArn: props.pineconeParams.indexEndpointSecretKeyFullArn,
                     fieldMapping: {
                         metadataField: 'metadata',
                         textField: 'text',
