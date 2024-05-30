@@ -70,7 +70,7 @@ export class BedrockStack extends cdk.Stack {
       switch (props.config.storageStoreType) {
         case StorageStoreType.Pinecone:
             return {
-                piconeParams: {
+                pineconeParams: {
                     apiKeySecretKey: PARAMS.SECRET_KEY.PINECONE_API_KEY,
                     indexEndpointSecretKey: PARAMS.SECRET_KEY.PINECONE_INDEX_ENDPOINT,
                 }

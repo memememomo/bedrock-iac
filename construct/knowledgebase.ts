@@ -4,11 +4,11 @@ import * as sm from 'aws-cdk-lib/aws-secretsmanager';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { PARAMS } from '../service/const';
-import {embeddingModelArn, kmsPolicyStatements, s3PolicyStatements} from "../service/util";
+import {embeddingModelArn, kmsPolicyStatements, s3PolicyStatements, secretsManagerArn} from "../service/util";
 import { Kms } from './kms';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
-import { CustomResource, Duration } from 'aws-cdk-lib';
+import {CustomResource, Duration, SecretValue} from 'aws-cdk-lib';
 import { Provider } from 'aws-cdk-lib/custom-resources';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import {CfnKnowledgeBase} from "aws-cdk-lib/aws-bedrock/lib/bedrock.generated";
@@ -36,7 +36,7 @@ type KnowledgeBaseProps = {
     embeddingModelName: string;
     knowledgeBaseParams: KnowledgeBaseParams;
     openSearchServerlessParams?: OpenSearchServerlessParams;
-    piconeParams?: PineconeParams;
+    pineconeParams?: PineconeParams;
 };
 
 export class KnowledgeBase extends Construct {
@@ -102,8 +102,8 @@ export class KnowledgeBase extends Construct {
         this.knowledgeBaseArn = cfnKnowledgeBase.attrKnowledgeBaseArn;
 
         // インデックスをカスタムリソースで作成
-        if (props.openSearchServerlessParams) {
-            const customResource = this.createOpenSearchIndexByCustomResource(props);
+        if (props.openSearchServerlessParams != null) {
+            const customResource = this.createOpenSearchIndexByCustomResource(props.openSearchServerlessParams);
             cfnKnowledgeBase.node.addDependency(customResource);
         }
 
@@ -135,7 +135,7 @@ export class KnowledgeBase extends Construct {
     }
 
     storageConfiguration(props: KnowledgeBaseProps): StorageConfigurationProperty {
-        if (props.openSearchServerlessParams) {
+        if (props.openSearchServerlessParams != null) {
             return {
                 type: 'OPENSEARCH_SERVERLESS',
                 opensearchServerlessConfiguration: {
@@ -150,17 +150,22 @@ export class KnowledgeBase extends Construct {
             }
         }
 
-        if (props.piconeParams) {
-            const secret = sm.Secret.fromSecretAttributes(this, 'PineconeSecret', {
-                secretPartialArn: props.piconeParams.indexEndpointSecretKey,
-            });
-            const endpoint = secret.secretValue.toString()
+        if (props.pineconeParams != null) {
+            //const secret = sm.Secret.fromSecretNameV2(
+            //    this,
+            //    'PineconeSecret',
+            //    props.pineconeParams.indexEndpointSecretKey
+            //);
+            const endpoint = SecretValue
+                .secretsManager(props.pineconeParams.indexEndpointSecretKey)
+                .unsafeUnwrap();
+
 
             return {
                 type: 'PINECONE',
                 pineconeConfiguration: {
-                    connectionString: endpoint,
-                    credentialsSecretArn: props.piconeParams.apiKeySecretKey,
+                    connectionString: `https://${endpoint}/`,
+                    credentialsSecretArn: props.pineconeParams.apiKeySecretKey,
                     fieldMapping: {
                         metadataField: 'metadata',
                         textField: 'text',
@@ -175,7 +180,7 @@ export class KnowledgeBase extends Construct {
         };
     }
 
-    createOpenSearchIndexByCustomResource(props: KnowledgeBaseProps) {
+    createOpenSearchIndexByCustomResource(props: OpenSearchServerlessParams) {
         // KnowledgeBase用のカスタムリソース用のIAMロール
         const customResourceRole = new iam.Role(
             this,
@@ -246,8 +251,8 @@ export class KnowledgeBase extends Construct {
             {
                 serviceToken: provider.serviceToken,
                 properties: {
-                    collectionEndpoint: props.openSearchServerlessParams.collectionEndpoint,
-                    indexName: props.openSearchServerlessParams.indexName,
+                    collectionEndpoint: props.collectionEndpoint,
+                    indexName: props.indexName,
                 },
             }
         )

@@ -30,7 +30,11 @@ export class Pinecone extends Construct {
                             new iam.PolicyStatement({
                                 resources: [secretsManagerArn(this, props.apiKeySecretKey)],
                                 actions: ['secretsmanager:GetSecretValue'],
-                            })
+                            }),
+                            new iam.PolicyStatement({
+                                resources: [secretsManagerArn(this, props.indexEndpointSecretKey)],
+                                actions: ['secretsmanager:CreateSecret', 'secretsmanager:DeleteSecret'],
+                            }),
                         ]
                     }),
                 },

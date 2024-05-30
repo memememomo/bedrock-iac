@@ -11,17 +11,17 @@ import {StorageStoreType} from "../service/const";
 const app = new cdk.App();
 const vpcStack = new VpcStack(app, 'BedrockVpcStack');
 
-const opensearchStack = new OpenSearchStack(app, 'OpenSearchStack');
-//const pineconeStack = new PineconeStack(app, 'PineconeStack');
+//const opensearchStack = new OpenSearchStack(app, 'OpenSearchStack');
+const pineconeStack = new PineconeStack(app, 'PineconeStack');
 
 const bedrockStack = new BedrockStack(app, 'BedrockStack', {
     config: {
-        storageStoreType: StorageStoreType.OpenSearchServerless,
-        //storageStoreType: StorageStoreType.Pinecone,
+        //storageStoreType: StorageStoreType.OpenSearchServerless,
+        storageStoreType: StorageStoreType.Pinecone,
     },
 });
-bedrockStack.addDependency(opensearchStack);
-//bedrockStack.addDependency(pineconeStack);
+//bedrockStack.addDependency(opensearchStack);
+bedrockStack.addDependency(pineconeStack);
 
 const agentStack = new AgentStack(app, 'AgentStack');
 agentStack.addDependency(bedrockStack);
