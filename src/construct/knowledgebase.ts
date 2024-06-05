@@ -8,8 +8,9 @@ import { CustomResource, Duration, SecretValue } from "aws-cdk-lib";
 import { Provider } from "aws-cdk-lib/custom-resources";
 import { RetentionDays } from "aws-cdk-lib/aws-logs";
 import { CfnKnowledgeBase } from "aws-cdk-lib/aws-bedrock/lib/bedrock.generated";
+import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { Kms } from "./kms";
-import { embeddingModelArn, kmsPolicyStatements, s3PolicyStatements, secretsManagerPartialArn } from "../service/util";
+import { embeddingModelArn, kmsPolicyStatements, s3PolicyStatements } from "../service/util";
 import { PARAMS } from "../service/const";
 import StorageConfigurationProperty = CfnKnowledgeBase.StorageConfigurationProperty;
 
@@ -26,9 +27,8 @@ export type OpenSearchServerlessParams = {
 };
 
 export type PineconeParams = {
-  apiKeySecretKey: string;
+  apiKeySecret: Secret;
   indexEndpointSecretKey: string;
-  indexEndpointSecretKeyFullArn: string;
 };
 
 type KnowledgeBaseProps = {
@@ -61,7 +61,7 @@ const storageConfiguration = (props: KnowledgeBaseProps): StorageConfigurationPr
       type: "PINECONE",
       pineconeConfiguration: {
         connectionString: `https://${endpoint}/`,
-        credentialsSecretArn: props.pineconeParams.indexEndpointSecretKeyFullArn,
+        credentialsSecretArn: props.pineconeParams.apiKeySecret.secretFullArn!,
         fieldMapping: {
           metadataField: "metadata",
           textField: "text",
@@ -92,51 +92,42 @@ export class KnowledgeBase extends Construct {
       alias: `data-source/${props.knowledgeBaseParams.name}`,
     });
 
-    const knowledgebasePolicies: { [name: string]: iam.PolicyDocument } = {
-      embedding: new iam.PolicyDocument({
-        statements: [
-          new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            resources: [embeddingModelArn(this, props.embeddingModelName)],
-            actions: ["bedrock:InvokeModel"],
-          }),
-        ],
-      }),
-      kms: new iam.PolicyDocument({
-        statements: [kmsPolicyStatements(this, key.keyArn)],
-      }),
-      s3: new iam.PolicyDocument({
-        statements: [...s3PolicyStatements(this, props.knowledgeBaseParams.bucket.bucketName)],
-      }),
-    };
+    const knowledgebasePolicy = new iam.Policy(this, "KnowledgeBasePolicy", {
+      statements: [
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          resources: [embeddingModelArn(this, props.embeddingModelName)],
+          actions: ["bedrock:InvokeModel"],
+        }),
+        kmsPolicyStatements(this, key.keyArn),
+        ...s3PolicyStatements(this, props.knowledgeBaseParams.bucket.bucketName),
+      ],
+    });
+
     if (props.openSearchServerlessParams) {
-      knowledgebasePolicies.aoss = new iam.PolicyDocument({
-        statements: [
-          new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            resources: [props.openSearchServerlessParams.collectionArn],
-            actions: ["aoss:*"],
-          }),
-        ],
-      });
+      knowledgebasePolicy.addStatements(
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          resources: [props.openSearchServerlessParams.collectionArn],
+          actions: ["aoss:*"],
+        })
+      );
     } else if (props.pineconeParams) {
-      knowledgebasePolicies.pinecone = new iam.PolicyDocument({
-        statements: [
-          new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            resources: [secretsManagerPartialArn(this, props.pineconeParams.apiKeySecretKey)],
-            actions: ["secretsmanager:GetSecretValue"],
-          }),
-        ],
-      });
+      knowledgebasePolicy.addStatements(
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          resources: [props.pineconeParams.apiKeySecret.secretFullArn!],
+          actions: ["secretsmanager:GetSecretValue"],
+        })
+      );
     }
 
     // KnowledgeBase用のIAMロール
     const knowledgebaseRole = new iam.Role(this, "KnowledgeBaseRole", {
       roleName: PARAMS.BEDROCK.ROLE_NAME,
       assumedBy: new iam.ServicePrincipal("bedrock.amazonaws.com"),
-      inlinePolicies: knowledgebasePolicies,
     });
+    knowledgebasePolicy.attachToRole(knowledgebaseRole);
     this.knowledgeBaseRole = knowledgebaseRole;
 
     // KnowledgeBase用のS3バケットに対する読み書き権限を付与
@@ -185,6 +176,7 @@ export class KnowledgeBase extends Construct {
         },
       },
     });
+    cfnKnowledgeBase.addDependency(knowledgebasePolicy.node.defaultChild as iam.CfnPolicy);
 
     this.knowledgeBaseId = cfnKnowledgeBase.attrKnowledgeBaseId;
     this.knowledgeBaseArn = cfnKnowledgeBase.attrKnowledgeBaseArn;

@@ -3,6 +3,8 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as cdk from "aws-cdk-lib";
 import { PARAMS } from "./const";
 
+export const resourceNameWithPrefix = (prefix: string, name: string) => `${prefix}-${name}`;
+
 export const kmsPolicyStatements = (c: Construct, keyArn: string) =>
   new iam.PolicyStatement({
     effect: iam.Effect.ALLOW,

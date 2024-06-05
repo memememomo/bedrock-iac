@@ -1,30 +1,33 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
+import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { EXPORT_NAME, PARAMS, StorageStoreType } from "../service/const";
 import { SecureS3 } from "../construct/secure-s3";
 import { BedrockGuardrail } from "../construct/guardrail";
 import { KnowledgeBase, OpenSearchServerlessParams, PineconeParams } from "../construct/knowledgebase";
-
-interface Config {
-  storageStoreType: StorageStoreType;
-  indexEndpointSecretKeyFullArn: string;
-}
+import { resourceNameWithPrefix } from "../service/util";
+import { Config } from "../service/types";
 
 interface BedrockStackProps extends cdk.StackProps {
   config: Config;
+  pinecone?: {
+    apiKeySecret: Secret;
+  };
 }
 
 const storageStore = (props: BedrockStackProps) => {
   const collectionArn = cdk.Fn.importValue(EXPORT_NAME.COLLECTION_ARN);
   const collectionEndpoint = cdk.Fn.importValue(EXPORT_NAME.COLLECTION_ENDPOINT);
 
-  switch (props.config.storageStoreType) {
+  const { prefix, storageStoreType } = props.config;
+
+  switch (storageStoreType) {
     case StorageStoreType.Pinecone:
       return {
         pineconeParams: {
-          apiKeySecretKey: PARAMS.SECRET_KEY.PINECONE_API_KEY,
-          indexEndpointSecretKey: PARAMS.SECRET_KEY.PINECONE_INDEX_ENDPOINT,
-          indexEndpointSecretKeyFullArn: props.config.indexEndpointSecretKeyFullArn,
+          apiKeySecret: props.pinecone?.apiKeySecret,
+          indexEndpointSecretKey: PARAMS.SECRET_KEY.PINECONE_INDEX_ENDPOINT(prefix),
+          indexEndpointSecretKeyFullArn: props.pinecone?.apiKeySecret?.secretArn ?? "",
         } as PineconeParams,
       };
     default:
@@ -43,26 +46,23 @@ export class BedrockStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: BedrockStackProps) {
     super(scope, id, props);
 
-    const s3BucketName = "bedrock-rag-esa";
-    const guardrailName = "bedrock-rag";
-    const knowledgeBaseName = "bedrock-rag";
+    const { prefix } = props.config;
 
-    // S3作成
-    const s3Bucket = new SecureS3(this, "KnowledgeBaseS3Bucket", {
-      name: s3BucketName,
+    const dataSourceBucket = new SecureS3(this, "KnowledgeBaseS3Bucket", {
+      name: resourceNameWithPrefix(prefix, PARAMS.BEDROCK.DATASOURCE_BUCKET_NAME),
     });
 
     // Guardrail作成
     new BedrockGuardrail(this, "Guardrail", {
-      name: guardrailName,
+      name: resourceNameWithPrefix(prefix, PARAMS.BEDROCK.GUARDRAIL_NAME),
     });
 
     // KnowledgeBase作成
     const knowledgebase = new KnowledgeBase(this, "KnowledgeBase", {
       embeddingModelName: PARAMS.BEDROCK.EMBEDDING_MODEL_NAME,
       knowledgeBaseParams: {
-        name: knowledgeBaseName,
-        bucket: s3Bucket.bucket,
+        name: resourceNameWithPrefix(prefix, PARAMS.BEDROCK.KNOWLEDGE_BASE_NAME),
+        bucket: dataSourceBucket.bucket,
       },
       ...storageStore(props),
     });
@@ -85,7 +85,7 @@ export class BedrockStack extends cdk.Stack {
       exportName: EXPORT_NAME.DATA_SOURCE_ID,
     });
     new cdk.CfnOutput(this, "DataSourceBucket", {
-      value: s3Bucket.bucket.bucketName,
+      value: dataSourceBucket.bucket.bucketName,
       exportName: EXPORT_NAME.DATASOURCE_BUCKET,
     });
   }

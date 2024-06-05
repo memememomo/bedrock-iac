@@ -3,9 +3,14 @@ import { Construct } from "constructs";
 import { Opensearch } from "../construct/opensearch";
 import { EXPORT_NAME, PARAMS } from "../service/const";
 import { bedrockRoleArn, customResourceRoleArn } from "../service/util";
+import { Config } from "../service/types";
+
+interface OpenSearchStackProps extends cdk.StackProps {
+  config: Config;
+}
 
 export class OpenSearchStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: OpenSearchStackProps) {
     super(scope, id, props);
 
     // OpenSearch作成

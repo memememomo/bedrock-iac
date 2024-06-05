@@ -12,15 +12,18 @@ export const PARAMS = {
     EMBEDDING_MODEL_NAME: "amazon.titan-embed-text-v1",
     DATASOURCE_BUCKET_NAME: "bedrock-datasource",
     FOUNDATION_MODEL_NAME: "anthropic.claude-3-sonnet-20240229-v1:0",
+    KNOWLEDGE_BASE_NAME: "rag",
+    GUARDRAIL_NAME: "rag",
     // FOUNDATION_MODEL_NAME: 'anthropic.claude-3-haiku-20240307-v1:0',
     DIMENSION: 1536,
+    INDEX_NAME: "rag",
   } as const,
   CUSTOM_RESOURCE: {
     ROLE_NAME: "custom-resource-role",
   } as const,
   SECRET_KEY: {
-    PINECONE_API_KEY: "pinecone-api-key",
-    PINECONE_INDEX_ENDPOINT: "pinecone-index-endpoint",
+    PINECONE_API_KEY: (prefix: string) => `${prefix}/pinecone-api-key`,
+    PINECONE_INDEX_ENDPOINT: (prefix: string) => `${prefix}/pinecone-index-endpoint`,
   } as const,
 } as const;
 
@@ -31,11 +34,12 @@ export const EXPORT_NAME = {
   COLLECTION_ARN: "CollectionArn",
   COLLECTION_ENDPOINT: "CollectionEndpoint",
   DATASOURCE_BUCKET: "DatasourceBucket",
-  KNOWLEDGE_BASE_ID: "bedrock-knowledgebase-id",
-  KNOWLEDGE_BASE_ROLE: "bedrock-knowledgebase-role",
-  KNOWLEDGE_BASE_ARN: "bedrock-knowledgebase-arn",
-  DATA_SOURCE_ID: "bedrock-datasource-id",
-  AGENT_ID: "bedrock-agent-id",
+  KNOWLEDGE_BASE_ID: "BedrockKnowledgebaseId",
+  KNOWLEDGE_BASE_ROLE: "BedrockKnowledgebaseRole",
+  KNOWLEDGE_BASE_ARN: "BedrockKnowledgebaseArn",
+  DATA_SOURCE_ID: "BedrockDatasourceId",
+  PINECONE_SECRET: "PineconeSecret",
+  AGENT_ID: "BedrockAgentId",
 } as const;
 
 export const StorageStoreType = {
