@@ -38,7 +38,7 @@ export class Pinecone extends Construct {
     });
 
     const customResourceF = new lambda.DockerImageFunction(this, "CustomResourceFunction", {
-      code: lambda.DockerImageCode.fromImageAsset("./resources/pinecone", {
+      code: lambda.DockerImageCode.fromImageAsset("./src/resources/pinecone", {
         platform: ecr_assets.Platform.LINUX_ARM64,
       }),
       architecture: lambda.Architecture.ARM_64,

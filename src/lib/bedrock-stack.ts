@@ -1,7 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { Secret } from "aws-cdk-lib/aws-secretsmanager";
-import { EXPORT_NAME, PARAMS, StorageStoreType } from "../service/const";
+import { EXPORT_NAME, PARAMS, StorageStoreTypes } from "../service/const";
 import { SecureS3 } from "../construct/secure-s3";
 import { BedrockGuardrail } from "../construct/guardrail";
 import { KnowledgeBase, OpenSearchServerlessParams, PineconeParams } from "../construct/knowledgebase";
@@ -22,12 +22,11 @@ const storageStore = (props: BedrockStackProps) => {
   const { prefix, storageStoreType } = props.config;
 
   switch (storageStoreType) {
-    case StorageStoreType.Pinecone:
+    case StorageStoreTypes.Pinecone:
       return {
         pineconeParams: {
           apiKeySecret: props.pinecone?.apiKeySecret,
           indexEndpointSecretKey: PARAMS.SECRET_KEY.PINECONE_INDEX_ENDPOINT(prefix),
-          indexEndpointSecretKeyFullArn: props.pinecone?.apiKeySecret?.secretArn ?? "",
         } as PineconeParams,
       };
     default:

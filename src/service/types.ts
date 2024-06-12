@@ -1,6 +1,6 @@
-import { StorageStoreType } from "./const";
+import { StorageStoreTypes } from "./const";
 
 export interface Config {
   prefix: string;
-  storageStoreType: StorageStoreType;
+  storageStoreType: StorageStoreTypes;
 }

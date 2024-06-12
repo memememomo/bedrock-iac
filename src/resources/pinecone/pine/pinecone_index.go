@@ -167,7 +167,7 @@ func (p *PineconeIndex) DeleteIndex(ctx context.Context) (string, map[string]int
 		return "", nil, errors.WithStack(err)
 	}
 
-	return "", nil, nil
+	return "PineconeIndex", nil, nil
 }
 
 func (p *PineconeIndex) CreateIndex(ctx context.Context) (string, map[string]interface{}, error) {
@@ -192,7 +192,7 @@ func (p *PineconeIndex) CreateIndex(ctx context.Context) (string, map[string]int
 		return "", nil, errors.WithStack(err)
 	}
 
-	return "", nil, nil
+	return "PineconeIndex", nil, nil
 }
 
 func (p *PineconeIndex) saveIndexEndpoint(ctx context.Context, indexEndpoint string) error {

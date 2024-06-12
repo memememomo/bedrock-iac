@@ -35,7 +35,7 @@ export class BedrockAgent extends Construct {
       versioned: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
-    new s3deploy.BucketDeployment(this, "ApiSchemaDeployment", {
+    const bucketDeploy = new s3deploy.BucketDeployment(this, "ApiSchemaDeployment", {
       sources: [s3deploy.Source.asset(props.schemaFilePath)],
       destinationBucket: apiSchemaBucket,
     });
@@ -130,6 +130,7 @@ export class BedrockAgent extends Construct {
       autoPrepare: true,
       instruction: props.instruction,
     });
+    cfnAgent.addDependency(apiSchemaBucket.node.defaultChild as s3.CfnBucket);
 
     this.agentId = cfnAgent.attrAgentId;
   }

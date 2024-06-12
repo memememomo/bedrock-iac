@@ -42,9 +42,8 @@ export const EXPORT_NAME = {
   AGENT_ID: "BedrockAgentId",
 } as const;
 
-export const StorageStoreType = {
+export const StorageStoreTypes = {
   Pinecone: "Pinecone",
   OpenSearchServerless: "OpenSearchServerless",
 } as const;
-// eslint-disable-next-line @typescript-eslint/no-redeclare
-export type StorageStoreType = (typeof StorageStoreType)[keyof typeof StorageStoreType];
+export type StorageStoreType = (typeof StorageStoreTypes)[keyof typeof StorageStoreTypes];
