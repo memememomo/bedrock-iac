@@ -11,8 +11,8 @@ export class AgentStack extends cdk.Stack {
 
     const agent = new BedrockAgent(this, "BedrockAgent", {
       prefix: APP_NAME,
-      schemaFilePath: "./resources/schema",
-      executorCodePath: "./resources/executor",
+      schemaFilePath: "./src/resources/schema",
+      executorCodePath: "./src/resources/executor",
       foundationModel: PARAMS.BEDROCK.FOUNDATION_MODEL_NAME,
       instruction:
         "You are an agent that can handle various tasks related to insurance claims, including looking up claim \\ndetails, finding what paperwork is outstanding, and sending reminders. Only send reminders if you have been \\nexplicitly requested to do so. If an user asks about your functionality, provide guidance in natural language and do not include function names on the output",
