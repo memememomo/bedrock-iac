@@ -1,11 +1,9 @@
-import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as bedrock from "aws-cdk-lib/aws-bedrock";
-import * as s3 from "aws-cdk-lib/aws-s3";
-import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { randomName } from "../service/util";
+import { BedrockAgentSchemaBucket } from "./bedrock-agent-schema-bucket";
 
 type KnowledgeBaseParams = {
   knowledgeBaseId: string;
@@ -19,6 +17,7 @@ type BedrockAgentProps = {
   foundationModel: string;
   instruction: string;
   knowledgeBaseParams: KnowledgeBaseParams;
+  schemaBucket: BedrockAgentSchemaBucket;
 };
 
 export class BedrockAgent extends Construct {
@@ -27,18 +26,7 @@ export class BedrockAgent extends Construct {
   constructor(scope: Construct, id: string, props: BedrockAgentProps) {
     super(scope, id);
 
-    // APIスキーマをS3にデプロイ
-    const apiSchemaBucketName = `${props.prefix}-api-schema-${randomName(this)}`;
-    const s3ObjectKey = "api-schema.json";
-    const apiSchemaBucket = new s3.Bucket(this, "ApiSchemaBucket", {
-      bucketName: apiSchemaBucketName,
-      versioned: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-    const bucketDeploy = new s3deploy.BucketDeployment(this, "ApiSchemaDeployment", {
-      sources: [s3deploy.Source.asset(props.schemaFilePath)],
-      destinationBucket: apiSchemaBucket,
-    });
+    const { schemaBucket } = props;
 
     // ActionExecutor用LambdaのIAMロール
     const actionExecutorRole = new iam.Role(this, "ActionExecutorRole", {
@@ -83,7 +71,7 @@ export class BedrockAgent extends Construct {
             new iam.PolicyStatement({
               effect: iam.Effect.ALLOW,
               actions: ["s3:GetObject"],
-              resources: [`${apiSchemaBucket.bucketArn}/${s3ObjectKey}`],
+              resources: [schemaBucket.getSchemaFileArn()],
             }),
           ],
         }),
@@ -112,8 +100,8 @@ export class BedrockAgent extends Construct {
           },
           apiSchema: {
             s3: {
-              s3BucketName: apiSchemaBucket.bucketName,
-              s3ObjectKey,
+              s3BucketName: schemaBucket.bucketName,
+              s3ObjectKey: schemaBucket.s3ObjectKey,
             },
           },
         },
@@ -130,7 +118,6 @@ export class BedrockAgent extends Construct {
       autoPrepare: true,
       instruction: props.instruction,
     });
-    cfnAgent.addDependency(apiSchemaBucket.node.defaultChild as s3.CfnBucket);
 
     this.agentId = cfnAgent.attrAgentId;
   }

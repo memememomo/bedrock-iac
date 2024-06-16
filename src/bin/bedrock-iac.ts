@@ -8,6 +8,7 @@ import { StorageStoreTypes, StorageStoreType } from "../service/const";
 import { Config } from "../service/types";
 import { PineconeSecretStack } from "../lib/pinecone-secret-stack";
 import { OpenSearchStack } from "../lib/opensearch-stack";
+import { BedrockAgentSchemaStack } from "../lib/agent-schema-stack";
 
 const app = new cdk.App();
 
@@ -45,5 +46,12 @@ const buildBedrockStack = (storageStoreType: StorageStoreType) => {
 
 const bedrockStack = buildBedrockStack(dev.storageStoreType);
 
-const agentStack = new AgentStack(app, "AgentStack");
+const agentSchemaStack = new BedrockAgentSchemaStack(app, "BedrockAgentSchemaStack", {
+  config: dev,
+});
+
+const agentStack = new AgentStack(app, "AgentStack", {
+  schemaBucket: agentSchemaStack.schemaBucket,
+});
 agentStack.addDependency(bedrockStack);
+agentStack.addDependency(agentSchemaStack);

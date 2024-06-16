@@ -2,9 +2,14 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { APP_NAME, EXPORT_NAME, PARAMS } from "../service/const";
 import { BedrockAgent } from "../construct/bedrock-agent";
+import { BedrockAgentSchemaBucket } from "../construct/bedrock-agent-schema-bucket";
+
+export interface AgentStackProps extends cdk.StackProps {
+  schemaBucket: BedrockAgentSchemaBucket;
+}
 
 export class AgentStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: AgentStackProps) {
     super(scope, id, props);
 
     const knowledgeBaseId = cdk.Fn.importValue(EXPORT_NAME.KNOWLEDGE_BASE_ID);
@@ -20,6 +25,7 @@ export class AgentStack extends cdk.Stack {
         knowledgeBaseId,
         description: "agent knowledge base",
       },
+      schemaBucket: props.schemaBucket,
     });
 
     new cdk.CfnOutput(this, "AgentId", {
